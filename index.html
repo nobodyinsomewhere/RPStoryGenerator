@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="glass-pink">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RP剧情触发器 V2</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="toastWrap" class="toast-wrap"></div>
+
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-card intro-card">
+        <div class="brand-row">
+          <div class="brand-mark">触</div>
+          <div>
+            <h1>RP剧情触发器</h1>
+            <p class="hero-sub">
+              为酒馆 / RP / 角色互动生成剧情钩子、推进节点与开场白。
+            </p>
+          </div>
+        </div>
+        <p class="hero-desc">
+          支持角色卡导入（JSON / PNG）、本地保存、收藏、复制、导出，以及接入 OpenAI 兼容 API 进行深度生成。
+        </p>
+      </div>
+
+      <div class="hero-card top-tools">
+        <div class="tool-box">
+          <label for="themeSelect">主题皮肤</label>
+          <select id="themeSelect"></select>
+        </div>
+
+        <div class="tool-box">
+          <label for="modeSelect">生成模式</label>
+          <select id="modeSelect">
+            <option value="template">模板快速生成</option>
+            <option value="ai">AI 深度生成</option>
+          </select>
+        </div>
+
+        <div class="tool-box status-box">
+          <span id="statusText" class="status-pill">就绪</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <section class="panel input-panel">
+        <div class="panel-hd">
+          <div>
+            <h2>输入区</h2>
+            <p>导入角色卡或手动填写，你想要的关系、氛围、张力都可以细调。</p>
+          </div>
+          <div class="panel-actions">
+            <button class="secondary" id="saveInputBtn">保存输入</button>
+            <button class="danger" id="clearInputBtn">清空输入</button>
+          </div>
+        </div>
+
+        <div class="panel-bd">
+          <div class="grid">
+            <div class="full">
+              <label for="cardFileInput">导入角色卡（支持 JSON / PNG）</label>
+              <input id="cardFileInput" type="file" accept=".json,.png,application/json,image/png" />
+              <div class="hint-text">导入后会自动尝试提取角色名、描述、人格、场景等信息。</div>
+            </div>
+
+            <div>
+              <label for="charName">角色名</label>
+              <input id="charName" placeholder="例如：林雾 / 塞西莉亚 / {{char}}" />
+            </div>
+
+            <div>
+              <label for="userName">玩家称呼</label>
+              <input id="userName" placeholder="例如：{{user}} / 指挥官 / 旅行者" />
+            </div>
+
+            <div class="full">
+              <label for="charSummary">角色设定摘要</label>
+              <textarea id="charSummary" placeholder="写一点角色的性格、关系方式、说话气质、背景关键词……越能体现角色越好。"></textarea>
+            </div>
+
+            <div>
+              <label for="relationSelect">关系类型</label>
+              <select id="relationSelect">
+                <option value="陌生人">陌生人</option>
+                <option value="旧识">旧识</option>
+                <option value="宿敌">宿敌</option>
+                <option value="前任">前任</option>
+                <option value="恋人">恋人</option>
+                <option value="暧昧对象">暧昧对象</option>
+                <option value="搭档">搭档</option>
+                <option value="主从">主从</option>
+                <option value="师徒">师徒</option>
+                <option value="交易对象">交易对象</option>
+                <option value="监视者与被监视者">监视者与被监视者</option>
+                <option value="custom">自定义</option>
+              </select>
+            </div>
+
+            <div id="customRelationWrap" class="hidden">
+              <label for="customRelation">自定义关系</label>
+              <input id="customRelation" placeholder="例如：被抛弃的旧情人 / 单方面追逐者 / 长期网友" />
+            </div>
+
+            <div>
+              <label for="sceneSelect">场景类型</label>
+              <select id="sceneSelect">
+                <option value="雨夜共处">雨夜共处</option>
+                <option value="旅店 / 酒馆">旅店 / 酒馆</option>
+                <option value="伤后照料">伤后照料</option>
+                <option value="深夜房间">深夜房间</option>
+                <option value="学园">学园</option>
+                <option value="战后重逢">战后重逢</option>
+                <option value="都市夜晚">都市夜晚</option>
+                <option value="密闭空间">密闭空间</option>
+                <option value="任务途中">任务途中</option>
+                <option value="宴会 / 社交场">宴会 / 社交场</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="directionSelect">剧情方向</label>
+              <select id="directionSelect">
+                <option value="普通剧情">普通剧情</option>
+                <option value="关系拉扯">关系拉扯</option>
+                <option value="暧昧推进">暧昧推进</option>
+                <option value="亲密张力">亲密张力</option>
+                <option value="成人向剧情">成人向剧情</option>
+                <option value="冲突升级">冲突升级</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="toneSelect">体验倾向</label>
+              <select id="toneSelect">
+                <option value="偏女性向情绪推进">偏女性向情绪推进</option>
+                <option value="偏剧情">偏剧情</option>
+                <option value="偏暧昧试探">偏暧昧试探</option>
+                <option value="偏压抑克制">偏压抑克制</option>
+                <option value="偏温柔递进">偏温柔递进</option>
+                <option value="偏危险拉扯">偏危险拉扯</option>
+                <option value="偏直接张力">偏直接张力</option>
+              </select>
+            </div>
+
+            <div class="full">
+              <label>关注重点（可多选）</label>
+              <div id="focusChips" class="chip-row"></div>
+            </div>
+
+            <div class="full">
+              <label for="extraPrompt">补充要求 / 你真正想要的感觉</label>
+              <textarea id="extraPrompt" placeholder="例如：想让 char 更克制一点，不要太直白；先从照料伤口开始，最后一句带一点危险感。"></textarea>
+            </div>
+
+            <div class="full api-block">
+              <div class="sub-block-title">AI 配置（可选）</div>
+              <div class="grid inner-grid">
+                <div>
+                  <label for="apiBase">API Base URL</label>
+                  <input id="apiBase" placeholder="https://example.com/v1" />
+                </div>
+                <div>
+                  <label for="apiModel">模型名</label>
+                  <input id="apiModel" placeholder="gpt-4o-mini / deepseek-chat / ..." />
+                </div>
+                <div class="full">
+                  <label for="apiKey">API Key</label>
+                  <input id="apiKey" type="password" placeholder="sk-..." />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="generateBtn">生成结果</button>
+            <button class="secondary" id="rerollBtn">再来一个</button>
+            <button class="secondary" id="copyAllBtn">复制全部</button>
+            <button class="secondary" id="exportTxtBtn">导出 TXT</button>
+            <button class="secondary" id="exportJsonBtn">导出 JSON</button>
+            <button class="secondary" id="saveFavBtn">收藏当前结果</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel output-panel">
+        <div class="panel-hd">
+          <div>
+            <h2>输出区</h2>
+            <p>可先用模板快速生成，也可以接 API 得到更自然的剧情文本。</p>
+          </div>
+        </div>
+
+        <div class="panel-bd">
+          <div class="output-stack">
+            <div class="out-card">
+              <div class="out-title">一句话钩子</div>
+              <div id="hookOut" class="out-content">还没有生成内容。</div>
+              <div class="mini-actions">
+                <button class="secondary copy-btn" data-copy-target="hookOut">复制这一段</button>
+              </div>
+            </div>
+
+            <div class="out-card">
+              <div class="out-title">场景摘要</div>
+              <div id="summaryOut" class="out-content">还没有生成内容。</div>
+              <div class="mini-actions">
+                <button class="secondary copy-btn" data-copy-target="summaryOut">复制这一段</button>
+              </div>
+            </div>
+
+            <div class="out-card">
+              <div class="out-title">推进节点</div>
+              <div id="beatOut" class="out-content">还没有生成内容。</div>
+              <div class="mini-actions">
+                <button class="secondary copy-btn" data-copy-target="beatOut">复制这一段</button>
+              </div>
+            </div>
+
+            <div class="out-card">
+              <div class="out-title">开场白</div>
+              <div id="openingOut" class="out-content">还没有生成内容。</div>
+              <div class="mini-actions">
+                <button class="secondary copy-btn" data-copy-target="openingOut">复制这一段</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel fav-panel">
+      <div class="panel-hd">
+        <div>
+          <h2>本地收藏</h2>
+          <p>收藏喜欢的生成结果，保存在当前浏览器本地。</p>
+        </div>
+      </div>
+
+      <div class="panel-bd">
+        <div id="favList" class="fav-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="./utils.js"></script>
+  <script src="./themes.js"></script>
+  <script src="./storage.js"></script>
+  <script src="./card-import.js"></script>
+  <script src="./api.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
