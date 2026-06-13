@@ -32,6 +32,7 @@
       charName: getEl("charName").value.trim(),
       userName: getEl("userName").value.trim(),
       charSummary: getEl("charSummary").value.trim(),
+      worldNpc: getEl("worldNpc").value.trim(),
       relation: getRelationValue(),
       scene: getEl("sceneSelect").value,
       direction: getEl("directionSelect").value,
@@ -68,6 +69,7 @@
     getEl("charName").value = data.charName || "";
     getEl("userName").value = data.userName || "";
     getEl("charSummary").value = data.charSummary || "";
+    getEl("worldNpc").value = data.worldNpc || "";
     getEl("relationSelect").value = data.relationSelect || "陌生人";
     getEl("customRelation").value = data.customRelation || "";
     getEl("sceneSelect").value = data.scene || "雨夜共处";
@@ -86,6 +88,7 @@
     getEl("charName").value = "";
     getEl("userName").value = "";
     getEl("charSummary").value = "";
+    getEl("worldNpc").value = "";
     getEl("relationSelect").value = "陌生人";
     getEl("customRelation").value = "";
     getEl("sceneSelect").value = "雨夜共处";
@@ -150,6 +153,7 @@
     const direction = input.direction || "普通剧情";
     const tone = input.tone || "偏女性向情绪推进";
     const summary = input.charSummary || `${charName}是一个有自己秘密、边界与情绪克制的人。`;
+    const worldNpc = input.worldNpc || "未补充世界观或其他 NPC。";
     const focus = input.focus.length ? input.focus.join("、") : "情绪变化与关系张力";
     const extra = input.extraPrompt || "无额外要求";
 
@@ -179,6 +183,9 @@
 - 角色名：${charName}
 - 玩家称呼：${userName}
 - 设定摘要：${summary}
+
+世界观 / 其他 NPC：
+${worldNpc}
 
 剧情输入：
 - 关系类型：${relation}
@@ -267,7 +274,12 @@
       return;
     }
     const filename = Utils.sanitizeFilename((getEl("charName").value || "rp-trigger") + ".json");
-    Utils.downloadJson(filename, state.lastResult);
+    Utils.downloadJson(filename, {
+      input: collectInput(),
+      result: state.lastResult,
+      exportedAt: new Date().toISOString(),
+      generator: "RP剧情触发器 V2"
+    });
     Utils.toast("JSON 已导出");
   }
 
@@ -351,7 +363,60 @@
     });
   }
 
+  function bindInputTabs() {
+    const tabs = [...document.querySelectorAll(".input-tab")];
+    const panels = [...document.querySelectorAll(".input-tab-panel")];
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const key = tab.dataset.inputTab;
+        tabs.forEach(item => item.classList.toggle("active", item === tab));
+        panels.forEach(panel => panel.classList.toggle("active", panel.dataset.inputPanel === key));
+      });
+    });
+  }
+
+  function bindOutputTabs() {
+    const tabs = [...document.querySelectorAll(".output-tab")];
+    const panels = [...document.querySelectorAll(".output-tab-panel")];
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        const key = tab.dataset.outputTab;
+        tabs.forEach(item => item.classList.toggle("active", item === tab));
+        panels.forEach(panel => panel.classList.toggle("active", panel.dataset.outputPanel === key));
+      });
+    });
+  }
+
+  function openApiModal() {
+    const modal = getEl("apiModal");
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    setTimeout(() => getEl("apiBase")?.focus(), 0);
+  }
+
+  function closeApiModal() {
+    const modal = getEl("apiModal");
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function bindApiModal() {
+    getEl("openApiSettingsBtn").addEventListener("click", openApiModal);
+    getEl("closeApiSettingsBtn").addEventListener("click", closeApiModal);
+    getEl("closeApiSettingsFooterBtn").addEventListener("click", closeApiModal);
+    getEl("apiModal").addEventListener("click", (event) => {
+      if (event.target === getEl("apiModal")) closeApiModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && getEl("apiModal").classList.contains("show")) closeApiModal();
+    });
+  }
+
   function bindEvents() {
+    bindInputTabs();
+    bindOutputTabs();
+    bindApiModal();
+
     getEl("relationSelect").addEventListener("change", updateCustomRelationVisibility);
 
     getEl("cardFileInput").addEventListener("change", async (e) => {

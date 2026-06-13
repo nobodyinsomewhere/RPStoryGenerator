@@ -40,6 +40,11 @@
           </select>
         </div>
 
+        <div class="tool-box compact-tool">
+          <label>高级设置</label>
+          <button class="secondary" id="openApiSettingsBtn" type="button">API 设置 ⚙</button>
+        </div>
+
         <div class="tool-box status-box">
           <span id="statusText" class="status-pill">就绪</span>
         </div>
@@ -59,8 +64,14 @@
           </div>
         </div>
 
-        <div class="panel-bd">
-          <div class="grid">
+        <div class="panel-bd input-workbench">
+          <div class="input-tabs" role="tablist" aria-label="输入分类">
+            <button class="input-tab active" data-input-tab="role" type="button">角色信息</button>
+            <button class="input-tab" data-input-tab="scene" type="button">关系场景</button>
+            <button class="input-tab" data-input-tab="focus" type="button">氛围重点</button>
+          </div>
+
+          <div class="grid input-tab-panel active" data-input-panel="role">
             <div class="full">
               <label for="cardFileInput">导入角色卡（支持 JSON / PNG）</label>
               <input id="cardFileInput" type="file" accept=".json,.png,application/json,image/png" />
@@ -82,6 +93,17 @@
               <textarea id="charSummary" placeholder="写一点角色的性格、关系方式、说话气质、背景关键词……越能体现角色越好。"></textarea>
             </div>
 
+            <div class="full">
+              <label for="worldNpc">世界观 / 其他 NPC</label>
+              <textarea id="worldNpc" placeholder="可写背景势力、重要配角、敌人、同伴、地点规则等。例：
+- 阿洛：酒馆老板，知道 {{char}} 的过去。
+- 白鸦组织：正在追捕 {{char}}。"></textarea>
+              <div class="hint-text">模板生成、AI 生成、保存和导出都会带上这里的内容。</div>
+            </div>
+
+          </div>
+
+          <div class="grid input-tab-panel" data-input-panel="scene">
             <div>
               <label for="relationSelect">关系类型</label>
               <select id="relationSelect">
@@ -146,6 +168,9 @@
               </select>
             </div>
 
+          </div>
+
+          <div class="grid input-tab-panel" data-input-panel="focus">
             <div class="full">
               <label>关注重点（可多选）</label>
               <div id="focusChips" class="chip-row"></div>
@@ -156,23 +181,6 @@
               <textarea id="extraPrompt" placeholder="例如：想让 char 更克制一点，不要太直白；先从照料伤口开始，最后一句带一点危险感。"></textarea>
             </div>
 
-            <div class="full api-block">
-              <div class="sub-block-title">AI 配置（可选）</div>
-              <div class="grid inner-grid">
-                <div>
-                  <label for="apiBase">API Base URL</label>
-                  <input id="apiBase" placeholder="https://example.com/v1" />
-                </div>
-                <div>
-                  <label for="apiModel">模型名</label>
-                  <input id="apiModel" placeholder="gpt-4o-mini / deepseek-chat / ..." />
-                </div>
-                <div class="full">
-                  <label for="apiKey">API Key</label>
-                  <input id="apiKey" type="password" placeholder="sk-..." />
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="actions">
@@ -192,9 +200,13 @@
             <h2>输出区</h2>
             <p>可先用模板快速生成，也可以接 API 得到更自然的剧情文本。</p>
           </div>
+          <div class="output-tabs" role="tablist" aria-label="输出视图">
+            <button class="output-tab active" data-output-tab="result" type="button">结果</button>
+            <button class="output-tab" data-output-tab="favorites" type="button">收藏</button>
+          </div>
         </div>
 
-        <div class="panel-bd">
+        <div class="panel-bd output-tab-panel active" data-output-panel="result">
           <div class="output-stack">
             <div class="out-card">
               <div class="out-title">一句话钩子</div>
@@ -229,28 +241,48 @@
             </div>
           </div>
         </div>
-      </section>
-    </section>
-
-    <section class="panel fav-panel">
-      <div class="panel-hd">
-        <div>
-          <h2>本地收藏</h2>
-          <p>收藏喜欢的生成结果，保存在当前浏览器本地。</p>
+        <div class="panel-bd output-tab-panel" data-output-panel="favorites">
+          <div class="fav-intro">
+            <h3>本地收藏</h3>
+            <p>收藏喜欢的生成结果，保存在当前浏览器本地。</p>
+          </div>
+          <div id="favList" class="fav-list"></div>
         </div>
-      </div>
-
-      <div class="panel-bd">
-        <div id="favList" class="fav-list"></div>
-      </div>
+      </section>
     </section>
   </div>
 
-  <script src="./utils.js?v=20260613-fix1"></script>
-  <script src="./themes.js?v=20260613-fix1"></script>
-  <script src="./storage.js?v=20260613-fix1"></script>
-  <script src="./card-import.js?v=20260613-fix1"></script>
-  <script src="./api.js?v=20260613-fix1"></script>
-  <script src="./app.js?v=20260613-fix1"></script>
+  <div id="apiModal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="apiModalTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="apiModalTitle">AI API 设置</h2>
+          <p>仅 AI 深度生成时使用；模板快速生成不需要填写。</p>
+        </div>
+        <button class="secondary icon-btn" id="closeApiSettingsBtn" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-body">
+        <label for="apiBase">API Base URL</label>
+        <input id="apiBase" placeholder="https://example.com/v1" />
+
+        <label for="apiModel">模型名</label>
+        <input id="apiModel" placeholder="gpt-4o-mini / deepseek-chat / ..." />
+
+        <label for="apiKey">API Key</label>
+        <input id="apiKey" type="password" placeholder="sk-..." />
+
+        <div class="modal-actions">
+          <button id="closeApiSettingsFooterBtn" type="button">完成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./utils.js?v=20260613-layout1"></script>
+  <script src="./themes.js?v=20260613-layout1"></script>
+  <script src="./storage.js?v=20260613-layout1"></script>
+  <script src="./card-import.js?v=20260613-layout1"></script>
+  <script src="./api.js?v=20260613-layout1"></script>
+  <script src="./app.js?v=20260613-layout1"></script>
 </body>
 </html>
