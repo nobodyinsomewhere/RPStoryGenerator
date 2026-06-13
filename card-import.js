@@ -60,6 +60,21 @@ window.CardImportService = (() => {
     return out;
   }
 
+  function decodeCharacterPayload(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("{")) return raw;
+
+    try {
+      const binary = atob(raw);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return Utils.uint8ToText(bytes);
+    } catch {
+      return raw;
+    }
+  }
+
   function extractCharacterJsonFromPngBytes(bytes) {
     const texts = extractTextChunks(bytes);
     const hit =
@@ -68,7 +83,7 @@ window.CardImportService = (() => {
       texts.find(x => x.keyword === "ccv2");
 
     if (!hit) return null;
-    return Utils.safeJsonParse(hit.text, null);
+    return Utils.safeJsonParse(decodeCharacterPayload(hit.text), null);
   }
 
   function normalizeCardObject(obj) {
@@ -80,6 +95,7 @@ window.CardImportService = (() => {
     const scenario = data.scenario || "";
     const creatorNotes = data.creator_notes || "";
     const summary = data.extensions?.summary || "";
+    const npcSettings = data.extensions?.npcSettings || "";
 
     const mergedSummary = [
       summary,
@@ -92,6 +108,7 @@ window.CardImportService = (() => {
     return {
       name,
       summary: mergedSummary.trim(),
+      worldNpc: npcSettings,
       raw: obj
     };
   }

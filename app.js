@@ -232,6 +232,9 @@ ${worldNpc}
     const result = await CardImportService.importCardFile(file);
     getEl("charName").value = result.name || "";
     getEl("charSummary").value = result.summary || "";
+    if (result.worldNpc) {
+      getEl("worldNpc").value = result.worldNpc;
+    }
     Utils.toast("角色卡已导入");
     Utils.setStatus("角色卡已导入");
   }
