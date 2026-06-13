@@ -8,7 +8,7 @@ window.StorageService = (() => {
   }
 
   function loadInput() {
-    return Utils.safeJsonParse(localStorage.getItem(INPUT_KEY), null);
+    return Utils.safeJsonParse(localStorage.getItem(INPUT_KEY), null) || null;
   }
 
   function clearInput() {
@@ -20,11 +20,13 @@ window.StorageService = (() => {
   }
 
   function loadFocus() {
-    return Utils.safeJsonParse(localStorage.getItem(FOCUS_KEY), []);
+    const parsed = Utils.safeJsonParse(localStorage.getItem(FOCUS_KEY), []);
+    return Array.isArray(parsed) ? parsed : [];
   }
 
   function loadFavs() {
-    return Utils.safeJsonParse(localStorage.getItem(FAV_KEY), []);
+    const parsed = Utils.safeJsonParse(localStorage.getItem(FAV_KEY), []);
+    return Array.isArray(parsed) ? parsed : [];
   }
 
   function saveFavs(list) {
