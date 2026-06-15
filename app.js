@@ -50,6 +50,66 @@
     };
   }
 
+  function normalizeBaseUrl(raw) {
+    const base = raw.trim().replace(/\/+$/, "");
+    if (!base) throw new Error("请先填写 Base URL");
+    if (!/^https?:\/\//i.test(base)) throw new Error("Base URL 必须以 http:// 或 https:// 开头");
+    return base;
+  }
+
+  function normalizeModelsPayload(data) {
+    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
+    return [...new Set(list.map(item => typeof item === "string" ? item : item?.id || item?.name || item?.model).filter(Boolean))].sort();
+  }
+
+  function setModelFetchStatus(text, kind = "") {
+    const el = getEl("modelFetchStatus");
+    el.textContent = text;
+    el.dataset.kind = kind;
+  }
+
+  function escapeHtml(text) {
+    return String(text || "").replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c]));
+  }
+
+  function renderModelOptions(models) {
+    const select = getEl("apiModelSelect");
+    select.innerHTML = '<option value="">选择拉取到的模型...</option>' + models.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("");
+    select.classList.toggle("hidden", !models.length);
+  }
+
+  async function handleFetchModels() {
+    const baseUrl = normalizeBaseUrl(getEl("apiBase").value);
+    const apiKey = getEl("apiKey").value.trim();
+    const btn = getEl("fetchModelsBtn");
+    btn.disabled = true;
+    btn.textContent = "拉取中...";
+    setModelFetchStatus("正在请求 /models ...");
+    try {
+      const res = await fetch(baseUrl + "/models", {
+        headers: {
+          Accept: "application/json",
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+        },
+        cache: "no-store"
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      if (!res.ok) throw new Error(`${res.status} ${text.slice(0, 240)}`);
+      const models = normalizeModelsPayload(data);
+      renderModelOptions(models);
+      setModelFetchStatus(models.length ? `已拉取 ${models.length} 个模型，选择后会自动填入模型名。` : "请求成功，但没有解析到模型 ID。", models.length ? "ok" : "warn");
+      if (models.length && !getEl("apiModel").value.trim()) getEl("apiModel").value = models[0];
+    } catch (err) {
+      renderModelOptions([]);
+      setModelFetchStatus(err.message || String(err), "bad");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "拉模型";
+    }
+  }
+
   function saveCurrentInput() {
     const data = {
       ...collectInput(),
@@ -407,6 +467,16 @@ ${worldNpc}
     getEl("openApiSettingsBtn").addEventListener("click", openApiModal);
     getEl("closeApiSettingsBtn").addEventListener("click", closeApiModal);
     getEl("closeApiSettingsFooterBtn").addEventListener("click", closeApiModal);
+    getEl("fetchModelsBtn").addEventListener("click", () => {
+      handleFetchModels().catch(err => {
+        setModelFetchStatus(err.message || String(err), "bad");
+      });
+    });
+    getEl("apiModelSelect").addEventListener("change", () => {
+      const value = getEl("apiModelSelect").value;
+      if (value) getEl("apiModel").value = value;
+      saveCurrentInput();
+    });
     getEl("apiModal").addEventListener("click", (event) => {
       if (event.target === getEl("apiModal")) closeApiModal();
     });

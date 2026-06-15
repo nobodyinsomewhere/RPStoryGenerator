@@ -265,11 +265,18 @@
         <label for="apiBase">API Base URL</label>
         <input id="apiBase" placeholder="https://example.com/v1" />
 
-        <label for="apiModel">模型名</label>
-        <input id="apiModel" placeholder="gpt-4o-mini / deepseek-chat / ..." />
-
         <label for="apiKey">API Key</label>
         <input id="apiKey" type="password" placeholder="sk-..." />
+
+        <label for="apiModel">模型名</label>
+        <div class="model-row">
+          <input id="apiModel" placeholder="先填 Base URL + Key，然后拉模型" />
+          <button class="secondary" id="fetchModelsBtn" type="button">拉模型</button>
+        </div>
+        <select id="apiModelSelect" class="model-select hidden" aria-label="选择模型">
+          <option value="">选择拉取到的模型...</option>
+        </select>
+        <div id="modelFetchStatus" class="model-fetch-status">可用于任意 OpenAI-compatible /v1/models。</div>
 
         <div class="modal-actions">
           <button id="closeApiSettingsFooterBtn" type="button">完成</button>
@@ -278,11 +285,11 @@
     </div>
   </div>
 
-  <script src="./utils.js?v=20260613-layout1"></script>
-  <script src="./themes.js?v=20260613-layout1"></script>
-  <script src="./storage.js?v=20260613-layout1"></script>
-  <script src="./card-import.js?v=20260613-layout1"></script>
-  <script src="./api.js?v=20260613-layout1"></script>
-  <script src="./app.js?v=20260613-layout1"></script>
+  <script src="./utils.js?v=20260615-models1"></script>
+  <script src="./themes.js?v=20260615-models1"></script>
+  <script src="./storage.js?v=20260615-models1"></script>
+  <script src="./card-import.js?v=20260615-models1"></script>
+  <script src="./api.js?v=20260615-models1"></script>
+  <script src="./app.js?v=20260615-models1"></script>
 </body>
 </html>

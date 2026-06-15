@@ -688,3 +688,31 @@ label{
 .modal-body label:first-child{
   margin-top:0;
 }
+
+.model-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.model-row button{
+  white-space:nowrap;
+}
+.model-select{
+  margin-top:10px;
+}
+.model-select.hidden{
+  display:none;
+}
+.model-fetch-status{
+  margin-top:9px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+.model-fetch-status[data-kind="ok"]{color:#1c8d61}
+.model-fetch-status[data-kind="warn"]{color:#a46c10}
+.model-fetch-status[data-kind="bad"]{color:var(--danger)}
+@media (max-width:640px){
+  .model-row{grid-template-columns:1fr}
+}
