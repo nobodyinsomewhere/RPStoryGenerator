@@ -50,16 +50,21 @@
     };
   }
 
-  function normalizeBaseUrl(raw) {
-    const base = raw.trim().replace(/\/+$/, "");
-    if (!base) throw new Error("请先填写 Base URL");
-    if (!/^https?:\/\//i.test(base)) throw new Error("Base URL 必须以 http:// 或 https:// 开头");
-    return base;
-  }
-
   function normalizeModelsPayload(data) {
-    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : Array.isArray(data) ? data : [];
-    return [...new Set(list.map(item => typeof item === "string" ? item : item?.id || item?.name || item?.model).filter(Boolean))].sort();
+    const list = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.models)
+        ? data.models
+        : Array.isArray(data)
+          ? data
+          : [];
+    return [
+      ...new Set(
+        list
+          .map(item => typeof item === "string" ? item : item?.id || item?.name || item?.model)
+          .filter(Boolean)
+      )
+    ].sort();
   }
 
   function setModelFetchStatus(text, kind = "") {
@@ -69,7 +74,7 @@
   }
 
   function escapeHtml(text) {
-    return String(text || "").replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", "\"": "&quot;" }[c]));
+    return String(text || "").replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
   }
 
   function renderModelOptions(models) {
@@ -79,34 +84,48 @@
   }
 
   async function handleFetchModels() {
-    const baseUrl = normalizeBaseUrl(getEl("apiBase").value);
-    const apiKey = getEl("apiKey").value.trim();
+    const config = collectApiConfig();
     const btn = getEl("fetchModelsBtn");
     btn.disabled = true;
     btn.textContent = "拉取中...";
-    setModelFetchStatus("正在请求 /models ...");
+    setModelFetchStatus(`正在请求 ${ApiService.modelListUrl(config.baseUrl)} ...`);
     try {
-      const res = await fetch(baseUrl + "/models", {
-        headers: {
-          Accept: "application/json",
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-        },
-        cache: "no-store"
-      });
-      const text = await res.text();
-      let data = null;
-      try { data = JSON.parse(text); } catch {}
-      if (!res.ok) throw new Error(`${res.status} ${text.slice(0, 240)}`);
+      const data = await ApiService.fetchModels(config);
       const models = normalizeModelsPayload(data);
       renderModelOptions(models);
-      setModelFetchStatus(models.length ? `已拉取 ${models.length} 个模型，选择后会自动填入模型名。` : "请求成功，但没有解析到模型 ID。", models.length ? "ok" : "warn");
-      if (models.length && !getEl("apiModel").value.trim()) getEl("apiModel").value = models[0];
+      if (models.length && !getEl("apiModel").value.trim()) {
+        getEl("apiModel").value = models[0];
+      }
+      setModelFetchStatus(
+        models.length
+          ? `已拉取 ${models.length} 个模型；请优先从列表里选择，能避免 400。`
+          : "请求成功，但没有解析到模型 ID。",
+        models.length ? "ok" : "warn"
+      );
+      saveCurrentInput();
     } catch (err) {
       renderModelOptions([]);
       setModelFetchStatus(err.message || String(err), "bad");
     } finally {
       btn.disabled = false;
       btn.textContent = "拉模型";
+    }
+  }
+
+  async function handleTestApi() {
+    const btn = getEl("testApiBtn");
+    btn.disabled = true;
+    btn.textContent = "测试中...";
+    setModelFetchStatus("正在测试 chat/completions ...");
+    try {
+      const result = await ApiService.testConnection(collectApiConfig());
+      setModelFetchStatus(`连接成功：${result.slice(0, 80)}`, "ok");
+      Utils.toast("API 连接正常");
+    } catch (err) {
+      setModelFetchStatus(err.message || String(err), "bad");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "测试连接";
     }
   }
 
@@ -159,6 +178,8 @@
     getEl("apiKey").value = "";
     getEl("apiModel").value = "";
     getEl("modeSelect").value = "template";
+    renderModelOptions([]);
+    setModelFetchStatus("可填域名根路径、`/v1`，或完整 `.../chat/completions`；点“拉模型”先验证。", "");
     state.focus = [];
     StorageService.saveFocus([]);
     renderFocusChips();
@@ -472,15 +493,20 @@ ${worldNpc}
         setModelFetchStatus(err.message || String(err), "bad");
       });
     });
+    getEl("testApiBtn").addEventListener("click", () => {
+      handleTestApi().catch(err => {
+        setModelFetchStatus(err.message || String(err), "bad");
+      });
+    });
     getEl("apiModelSelect").addEventListener("change", () => {
       const value = getEl("apiModelSelect").value;
       if (value) getEl("apiModel").value = value;
       saveCurrentInput();
     });
-    getEl("apiModal").addEventListener("click", (event) => {
+    getEl("apiModal").addEventListener("click", event => {
       if (event.target === getEl("apiModal")) closeApiModal();
     });
-    document.addEventListener("keydown", (event) => {
+    document.addEventListener("keydown", event => {
       if (event.key === "Escape" && getEl("apiModal").classList.contains("show")) closeApiModal();
     });
   }
@@ -492,7 +518,7 @@ ${worldNpc}
 
     getEl("relationSelect").addEventListener("change", updateCustomRelationVisibility);
 
-    getEl("cardFileInput").addEventListener("change", async (e) => {
+    getEl("cardFileInput").addEventListener("change", async e => {
       const file = e.target.files?.[0];
       if (!file) return;
       try {
@@ -502,6 +528,30 @@ ${worldNpc}
         Utils.setStatus("导入失败");
       }
       e.target.value = "";
+    });
+
+    [
+      "charName",
+      "userName",
+      "charSummary",
+      "worldNpc",
+      "relationSelect",
+      "customRelation",
+      "sceneSelect",
+      "directionSelect",
+      "toneSelect",
+      "extraPrompt",
+      "apiBase",
+      "apiKey",
+      "apiModel",
+      "modeSelect"
+    ].forEach(id => {
+      getEl(id)?.addEventListener("change", saveCurrentInput);
+      getEl(id)?.addEventListener("input", () => {
+        if (["charSummary", "worldNpc", "extraPrompt", "customRelation", "apiBase", "apiKey", "apiModel", "charName", "userName"].includes(id)) {
+          saveCurrentInput();
+        }
+      });
     });
 
     getEl("generateBtn").addEventListener("click", handleGenerate);
@@ -518,7 +568,6 @@ ${worldNpc}
 
   function init() {
     ThemeService.initThemeSelect();
-
     state.focus = StorageService.loadFocus();
     renderFocusChips();
 
@@ -529,6 +578,8 @@ ${worldNpc}
       updateCustomRelationVisibility();
     }
 
+    renderModelOptions([]);
+    setModelFetchStatus("可填域名根路径、`/v1`，或完整 `.../chat/completions`；点“拉模型”先验证。", "");
     bindEvents();
     renderFavs();
     Utils.setStatus("就绪");
