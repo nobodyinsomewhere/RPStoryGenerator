@@ -10,9 +10,12 @@
     "事后余波"
   ];
 
+  const PROVIDERS_KEY = "rp_trigger_api_providers_v1";
+
   const state = {
     focus: [],
-    lastResult: null
+    lastResult: null,
+    models: []
   };
 
   function getEl(id) {
@@ -44,10 +47,62 @@
 
   function collectApiConfig() {
     return {
+      name: getEl("providerName")?.value.trim() || "",
       baseUrl: getEl("apiBase").value.trim(),
       apiKey: getEl("apiKey").value.trim(),
       model: getEl("apiModel").value.trim()
     };
+  }
+
+  function humanizeError(err) {
+    const text = err?.message || String(err || "未知错误");
+    if (/401|unauthorized|invalid api key|incorrect api key/i.test(text)) return "Key 可能无效或无权限：" + text;
+    if (/404|model.*not.*found|does not exist|模型不存在/i.test(text)) return "模型可能不存在或模型名填错：" + text;
+    if (/400|bad_request|bad response status/i.test(text)) return "供应商返回 400：常见是 Base URL 层级、模型映射、请求格式或上游通道异常。" + text;
+    if (/json|不是合法 JSON|Unexpected token/i.test(text)) return "返回不是 JSON：供应商可能返回了 HTML/错误页，或模型没有按要求输出 JSON。" + text;
+    if (/Failed to fetch|NetworkError|CORS/i.test(text)) return "网络或 CORS 失败：浏览器可能无法直连该供应商，建议走可跨域的 OpenAI-compatible 网关。" + text;
+    return text;
+  }
+
+  function loadProviders() {
+    const parsed = Utils.safeJsonParse(localStorage.getItem(PROVIDERS_KEY), []);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  function saveProviders(list) {
+    localStorage.setItem(PROVIDERS_KEY, JSON.stringify(list.slice(0, 12)));
+  }
+
+  function renderRecentProviders() {
+    const select = getEl("recentProviderSelect");
+    if (!select) return;
+    const providers = loadProviders();
+    select.innerHTML = '<option value="">选择最近配置...</option>' + providers.map((item, index) => `<option value="${index}">${escapeHtml(item.name || item.model || item.baseUrl || "未命名供应商")}</option>`).join("");
+  }
+
+  function saveProviderConfig() {
+    const config = collectApiConfig();
+    if (!config.baseUrl || !config.model) {
+      setModelFetchStatus("至少填写 Base URL 和模型名后再保存。", "warn");
+      return;
+    }
+    const providers = loadProviders().filter(item => !(item.baseUrl === config.baseUrl && item.model === config.model));
+    providers.unshift({ ...config, savedAt: Date.now() });
+    saveProviders(providers);
+    renderRecentProviders();
+    setModelFetchStatus("已保存到最近供应商。", "ok");
+    Utils.toast("供应商配置已保存");
+  }
+
+  function applyProvider(index) {
+    const item = loadProviders()[Number(index)];
+    if (!item) return;
+    getEl("providerName").value = item.name || "";
+    getEl("apiBase").value = item.baseUrl || "";
+    getEl("apiKey").value = item.apiKey || "";
+    getEl("apiModel").value = item.model || "";
+    saveCurrentInput();
+    setModelFetchStatus("已载入最近供应商，可直接测试连接或拉模型。", "ok");
   }
 
   function normalizeModelsPayload(data) {
@@ -77,10 +132,17 @@
     return String(text || "").replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
   }
 
-  function renderModelOptions(models) {
+  function renderModelOptions(models, filter = "") {
+    state.models = models.length ? models : state.models;
+    const source = models.length ? models : state.models;
+    const keyword = filter.trim().toLowerCase();
+    const visible = keyword ? source.filter(model => model.toLowerCase().includes(keyword)) : source;
     const select = getEl("apiModelSelect");
-    select.innerHTML = '<option value="">选择拉取到的模型...</option>' + models.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("");
-    select.classList.toggle("hidden", !models.length);
+    const search = getEl("modelSearch");
+    select.innerHTML = '<option value="">选择拉取到的模型...</option>' + visible.map(model => `<option value="${escapeHtml(model)}">${escapeHtml(model)}</option>`).join("");
+    select.classList.toggle("hidden", !source.length);
+    search?.classList.toggle("hidden", !source.length);
+    if (source.length) setModelFetchStatus(`显示 ${visible.length}/${source.length} 个模型。`, visible.length ? "ok" : "warn");
   }
 
   async function handleFetchModels() {
@@ -105,7 +167,7 @@
       saveCurrentInput();
     } catch (err) {
       renderModelOptions([]);
-      setModelFetchStatus(err.message || String(err), "bad");
+      setModelFetchStatus(humanizeError(err), "bad");
     } finally {
       btn.disabled = false;
       btn.textContent = "拉模型";
@@ -122,7 +184,7 @@
       setModelFetchStatus(`连接成功：${result.slice(0, 80)}`, "ok");
       Utils.toast("API 连接正常");
     } catch (err) {
-      setModelFetchStatus(err.message || String(err), "bad");
+      setModelFetchStatus(humanizeError(err), "bad");
     } finally {
       btn.disabled = false;
       btn.textContent = "测试连接";
@@ -134,6 +196,7 @@
       ...collectInput(),
       relationSelect: getEl("relationSelect").value,
       customRelation: getEl("customRelation").value.trim(),
+      providerName: getEl("providerName")?.value.trim() || "",
       apiBase: getEl("apiBase").value.trim(),
       apiKey: getEl("apiKey").value.trim(),
       apiModel: getEl("apiModel").value.trim(),
@@ -155,6 +218,7 @@
     getEl("directionSelect").value = data.direction || "普通剧情";
     getEl("toneSelect").value = data.tone || "偏女性向情绪推进";
     getEl("extraPrompt").value = data.extraPrompt || "";
+    getEl("providerName").value = data.providerName || "";
     getEl("apiBase").value = data.apiBase || "";
     getEl("apiKey").value = data.apiKey || "";
     getEl("apiModel").value = data.apiModel || "";
@@ -174,11 +238,13 @@
     getEl("directionSelect").value = "普通剧情";
     getEl("toneSelect").value = "偏女性向情绪推进";
     getEl("extraPrompt").value = "";
+    getEl("providerName").value = "";
     getEl("apiBase").value = "";
     getEl("apiKey").value = "";
     getEl("apiModel").value = "";
     getEl("modeSelect").value = "template";
     renderModelOptions([]);
+    renderRecentProviders();
     setModelFetchStatus("可填域名根路径、`/v1`，或完整 `.../chat/completions`；点“拉模型”先验证。", "");
     state.focus = [];
     StorageService.saveFocus([]);
@@ -305,7 +371,8 @@ ${worldNpc}
     } catch (err) {
       console.error(err);
       Utils.setStatus("生成失败");
-      alert(err.message || String(err));
+      setModelFetchStatus(humanizeError(err), "bad");
+      Utils.toast("生成失败，查看 API 设置提示")
     }
   }
 
@@ -488,14 +555,17 @@ ${worldNpc}
     getEl("openApiSettingsBtn").addEventListener("click", openApiModal);
     getEl("closeApiSettingsBtn").addEventListener("click", closeApiModal);
     getEl("closeApiSettingsFooterBtn").addEventListener("click", closeApiModal);
+    getEl("saveProviderBtn").addEventListener("click", saveProviderConfig);
+    getEl("recentProviderSelect").addEventListener("change", () => applyProvider(getEl("recentProviderSelect").value));
+    getEl("modelSearch").addEventListener("input", () => renderModelOptions([], getEl("modelSearch").value));
     getEl("fetchModelsBtn").addEventListener("click", () => {
       handleFetchModels().catch(err => {
-        setModelFetchStatus(err.message || String(err), "bad");
+        setModelFetchStatus(humanizeError(err), "bad");
       });
     });
     getEl("testApiBtn").addEventListener("click", () => {
       handleTestApi().catch(err => {
-        setModelFetchStatus(err.message || String(err), "bad");
+        setModelFetchStatus(humanizeError(err), "bad");
       });
     });
     getEl("apiModelSelect").addEventListener("change", () => {
@@ -524,7 +594,8 @@ ${worldNpc}
       try {
         await handleImportCard(file);
       } catch (err) {
-        alert(err.message || String(err));
+        setModelFetchStatus(humanizeError(err), "bad");
+      Utils.toast("生成失败，查看 API 设置提示")
         Utils.setStatus("导入失败");
       }
       e.target.value = "";
@@ -541,6 +612,7 @@ ${worldNpc}
       "directionSelect",
       "toneSelect",
       "extraPrompt",
+      "providerName",
       "apiBase",
       "apiKey",
       "apiModel",
@@ -579,6 +651,7 @@ ${worldNpc}
     }
 
     renderModelOptions([]);
+    renderRecentProviders();
     setModelFetchStatus("可填域名根路径、`/v1`，或完整 `.../chat/completions`；点“拉模型”先验证。", "");
     bindEvents();
     renderFavs();

@@ -262,8 +262,16 @@
         <button class="secondary icon-btn" id="closeApiSettingsBtn" type="button" aria-label="关闭">×</button>
       </div>
       <div class="modal-body">
+        <label for="providerName">供应商名称（可选）</label>
+        <input id="providerName" placeholder="例如：备用供应商 / New API / 某渠道" />
+
+        <label for="recentProviderSelect">最近用过的供应商</label>
+        <select id="recentProviderSelect" class="model-select">
+          <option value="">选择最近配置...</option>
+        </select>
+
         <label for="apiBase">API Base URL</label>
-        <input id="apiBase" placeholder="https://example.com/v1" />
+        <input id="apiBase" placeholder="https://example.com / https://example.com/v1 / .../chat/completions" />
 
         <label for="apiKey">API Key</label>
         <input id="apiKey" type="password" placeholder="sk-..." />
@@ -273,12 +281,14 @@
           <input id="apiModel" placeholder="先填 Base URL + Key，然后拉模型" />
           <button class="secondary" id="fetchModelsBtn" type="button">拉模型</button>
         </div>
+        <input id="modelSearch" class="model-select hidden" placeholder="搜索 / 过滤模型名" />
         <select id="apiModelSelect" class="model-select hidden" aria-label="选择模型">
           <option value="">选择拉取到的模型...</option>
         </select>
         <div id="modelFetchStatus" class="model-fetch-status">可用于任意 OpenAI-compatible /v1/models。</div>
 
         <div class="modal-actions">
+          <button id="saveProviderBtn" class="secondary" type="button">保存为最近供应商</button>
           <button id="testApiBtn" class="secondary" type="button">测试连接</button>
           <button id="closeApiSettingsFooterBtn" type="button">完成</button>
         </div>
@@ -286,11 +296,11 @@
     </div>
   </div>
 
-  <script src="./utils.js?v=20260615-api400fix1"></script>
-  <script src="./themes.js?v=20260615-api400fix1"></script>
-  <script src="./storage.js?v=20260615-api400fix1"></script>
-  <script src="./card-import.js?v=20260615-api400fix1"></script>
-  <script src="./api.js?v=20260615-api400fix1"></script>
-  <script src="./app.js?v=20260615-api400fix1"></script>
+  <script src="./utils.js?v=20260615-apiux1"></script>
+  <script src="./themes.js?v=20260615-apiux1"></script>
+  <script src="./storage.js?v=20260615-apiux1"></script>
+  <script src="./card-import.js?v=20260615-apiux1"></script>
+  <script src="./api.js?v=20260615-apiux1"></script>
+  <script src="./app.js?v=20260615-apiux1"></script>
 </body>
 </html>
